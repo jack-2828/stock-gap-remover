@@ -9,6 +9,7 @@ qqq_data.drop(columns=['Dividends', 'Stock Splits', "Capital Gains"], inplace=Tr
 qqq_data.index = pd.to_datetime(qqq_data.index)
 qqq_data.index = qqq_data.index.strftime('%m-%d-%Y')
 qqq_no_gaps = pd.DataFrame()
+qqq_no_gaps.index.name = 'Date'
 previous_close = 0
 for index, row in qqq_data.iterrows():
     aligned_prev_close = qqq_data["Close"].shift(1)
@@ -30,4 +31,4 @@ for index, row in qqq_data.iterrows():
 print(qqq_no_gaps)
 
 with open('./data/QQQ_no_gaps.csv', 'w') as f:
-    qqq_no_gaps.to_csv(f)
+    qqq_no_gaps.to_csv(f, index_label="Date")

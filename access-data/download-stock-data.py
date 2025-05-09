@@ -11,16 +11,23 @@ qqq_data.index = qqq_data.index.strftime('%m-%d-%Y')
 qqq_no_gaps = pd.DataFrame()
 previous_close = 0
 for index, row in qqq_data.iterrows():
+    aligned_prev_close = qqq_data["Close"].shift(1)
     if previous_close == 0:
-        previous_close = row['Close']
-        qqq_no_gaps = qqq_no_gaps.add(row)
-    # else: 
-        # daily_change = row['Close'] - row['Open']
-        # previous_close = row['Close']
-        # qqq_no_gaps = qqq_no_gaps.append(row)
-print(qqq_no_gaps)
-with open('./data/QQQ_no_gaps.csv', 'w') as f:
-    qqq_data.to_csv(f)
-    f.write('\n')
-    f.write('Date,Open,High,Low,Close,Volume,Dividends,Stock Splits\n')
+        new_row = pd.DataFrame({
+            'Open':  [round(row['Open'], 2)],
+            'High':  [0],
+            'Low':   [0],
+            'Close': [round(row['Close'], 2)]
+        }, index=[index])
+    else: 
+        adj_open = round(previous_close, 2)
+        adj_close = round((row['Close'] - row['Open']) + adj_open, 2)
+        new_row = pd.DataFrame({'Open': [adj_open], 'High': [0], 'Low': [0], 'Close': [adj_close]}, index=[index])
+    qqq_no_gaps = pd.concat([qqq_no_gaps, new_row], axis=0)
+    previous_close = row['Close']
 
+
+print(qqq_no_gaps)
+
+with open('./data/QQQ_no_gaps.csv', 'w') as f:
+    qqq_no_gaps.to_csv(f)

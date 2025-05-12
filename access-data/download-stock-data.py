@@ -7,16 +7,13 @@ import asyncio
 import time
 import aiofiles
 
-
 class GenerateData():
     def __init__(self):
         self.current_date = datetime.datetime.today().strftime("%m-%d-%Y")
         # incrementing the date by 1 day to ensure today's data is included
         self.tomorrow_date = datetime.datetime.today() + timedelta(days=1)
         self.tomorrow_date = self.tomorrow_date.strftime("%Y-%m-%d")
-    async def create_no_gap(self, iter):
-        print(f"Evaluating iteration #{iter}")
-    
+    async def create_no_gap(self, iter):    
         if iter == 0:
             # dat_data is a Future
             dat_data = await self.get_stock_data("QQQ")
@@ -47,7 +44,6 @@ class GenerateData():
                 ratio = pd.concat([ratio, new_ratio_row], axis=0)
             
             dat_data = ratio.copy(deep=True)
-        # here is where I would like to await
         no_gaps_data = pd.DataFrame()
         previous_close = 0
         for index, row in dat_data.iterrows():
@@ -70,18 +66,13 @@ class GenerateData():
                     }, index=[index])
                 previous_close = adj_close
             no_gaps_data = pd.concat([no_gaps_data, new_row], axis=0)
-        # once we are done creating the df, I want to execute save_data async with the loop 2
-        ##### not sure what i'm doing here... I don't want to await this. 
-
         await self.save_data(no_gaps_data)
     async def get_stock_data(self, ticker: str) -> pd.DataFrame:
         def fetch(self):
-            print(f'Accessing stock data for {ticker}...')
             dat_data = yf.Ticker(ticker).history(period='1d', start='2024-01-01', end=self.tomorrow_date)
             dat_data.drop(columns=['Dividends', 'Stock Splits', "Capital Gains"], inplace=True)
             dat_data.index = pd.to_datetime(dat_data.index)
             dat_data.index = dat_data.index.strftime('%m-%d-%Y')
-            print(f'Successfully accessed {ticker} data')
             return dat_data
         return await asyncio.to_thread(fetch, self)
     async def save_data(self, df: pd.DataFrame):
@@ -119,7 +110,4 @@ async def main():
 if __name__ == "__main__":
     start = time.perf_counter()
     get_data = GenerateData()
-    
     asyncio.run(main())
-    end = time.perf_counter() - start
-    print(f'This program took {end:0.2f} seconds') 

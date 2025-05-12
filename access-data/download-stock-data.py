@@ -1,4 +1,3 @@
-from turtle import st
 import yfinance as yf
 import pandas as pd
 from datetime import timedelta
@@ -6,6 +5,7 @@ import datetime
 import os
 import asyncio
 import time
+import aiofiles
 
 
 class GenerateData():
@@ -18,17 +18,21 @@ class GenerateData():
         print(f"Evaluating iteration #{iter}")
     
         if iter == 0:
-            
+            # dat_data is a Future
             dat_data = await self.get_stock_data("QQQ")
             self.name = "QQQ"
         else:
             if iter == 1:
-                dat1_data = await self.get_stock_data('XLY')
-                dat2_data = await self.get_stock_data('XLP')
+                dat1_data, dat2_data = await asyncio.gather(
+                    self.get_stock_data('XLY'),
+                    self.get_stock_data('XLP')
+                    )
                 self.name = "XLY-vs-XLP"
             elif iter == 2:
-                dat1_data = await self.get_stock_data('RSPD')
-                dat2_data = await self.get_stock_data('RSPS')
+                dat1_data, dat2_data = await asyncio.gather(
+                    self.get_stock_data('RSPD'),
+                    self.get_stock_data('RSPS')
+                    )
                 self.name = "RSPD-vs-RSPS"
             ratio = pd.DataFrame()
             for (index1, row1), (index2, row2) in zip(dat1_data.iterrows(), dat2_data.iterrows()):
@@ -71,14 +75,15 @@ class GenerateData():
 
         await self.save_data(no_gaps_data)
     async def get_stock_data(self, ticker: str) -> pd.DataFrame:
-        print(f'Accessing stock data for {ticker}...')
-        # await asyncio.sleep(1)
-        dat_data = yf.Ticker(ticker).history(period='1d', start='2024-01-01', end=self.tomorrow_date)
-        dat_data.drop(columns=['Dividends', 'Stock Splits', "Capital Gains"], inplace=True)
-        dat_data.index = pd.to_datetime(dat_data.index)
-        dat_data.index = dat_data.index.strftime('%m-%d-%Y')
-        print(f'Successfully accessed {ticker} data')
-        return dat_data
+        def fetch(self):
+            print(f'Accessing stock data for {ticker}...')
+            dat_data = yf.Ticker(ticker).history(period='1d', start='2024-01-01', end=self.tomorrow_date)
+            dat_data.drop(columns=['Dividends', 'Stock Splits', "Capital Gains"], inplace=True)
+            dat_data.index = pd.to_datetime(dat_data.index)
+            dat_data.index = dat_data.index.strftime('%m-%d-%Y')
+            print(f'Successfully accessed {ticker} data')
+            return dat_data
+        return await asyncio.to_thread(fetch, self)
     async def save_data(self, df: pd.DataFrame):
         '''
         Save the given no-gap pandas dataframe to disk as a .csv
@@ -91,23 +96,30 @@ class GenerateData():
         os.makedirs(target_folder, exist_ok=True)
         file_path = os.path.join(target_folder, f'{self.name}_no_gaps-{self.current_date}.csv')
         try: 
-            # implement async file saving to speed up process
-            with open(file_path, 'w', newline="") as f:
-                df.to_csv(f, index_label="Date")
+            csv_data = df.to_csv(index_label="Date")
+            async with aiofiles.open(file_path, 'w', newline="") as f:
+                await f.write(csv_data)
             print("File saved at", file_path)
         except:
             print("An error was encountered saving", file_path)
 
 async def main():
-        
-    get_data = GenerateData()
-    for n in range(3):
-        asyncio.gather(get_data.create_no_gap(n))
-    
-    
-
+    qqq = asyncio.create_task(
+        get_data.create_no_gap(0),
+    )
+    xlyxlp = asyncio.create_task(
+        get_data.create_no_gap(1),
+    )
+    rsomething = asyncio.create_task(
+        get_data.create_no_gap(2),
+    )
+    await qqq
+    await xlyxlp
+    await rsomething
 if __name__ == "__main__":
     start = time.perf_counter()
+    get_data = GenerateData()
+    
     asyncio.run(main())
     end = time.perf_counter() - start
-    print(f'This programt took {end:0.2f} seconds') 
+    print(f'This program took {end:0.2f} seconds') 

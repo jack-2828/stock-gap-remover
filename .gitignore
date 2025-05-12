@@ -7,4 +7,6 @@ data-Jack's M3 MacBook Pro/
 access-data-Jack's M3 MacBook Pro/
 .git-Jack's M3 MacBook Pro/
 *.csv
-*.spec
+download-stock-data.spec
+downloads/
+app_icon.ico

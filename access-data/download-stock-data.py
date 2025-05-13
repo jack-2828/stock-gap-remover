@@ -18,6 +18,9 @@ class GenerateData():
             # dat_data is a Future
             dat_data = await self.get_stock_data("QQQ")
             self.name = "QQQ"
+        elif iter == 3:
+            dat_data = await self.get_stock_data("XLK")
+            self.name = "XLK"
         else:
             if iter == 1:
                 dat1_data, dat2_data = await asyncio.gather(
@@ -30,7 +33,19 @@ class GenerateData():
                     self.get_stock_data('RSPD'),
                     self.get_stock_data('RSPS')
                     )
-                self.name = "RSPD-vs-RSPS"
+                self.name = "RSPD-vs-RSPS"                
+            elif iter == 4:
+                dat1_data, dat2_data = await asyncio.gather(
+                    self.get_stock_data('XLK'),
+                    self.get_stock_data('XLI')
+                    )
+                self.name = "XLK_vs_XLI"
+            elif iter == 5:
+                dat1_data, dat2_data = await asyncio.gather(
+                    self.get_stock_data('XLK'),
+                    self.get_stock_data('XLP')
+                    )
+                self.name = "XLK_vs_XLP"
             ratio = pd.DataFrame()
             for (index1, row1), (index2, row2) in zip(dat1_data.iterrows(), dat2_data.iterrows()):
                 if (index1 != index2):
@@ -68,13 +83,14 @@ class GenerateData():
             no_gaps_data = pd.concat([no_gaps_data, new_row], axis=0)
         await self.save_data(no_gaps_data)
     async def get_stock_data(self, ticker: str) -> pd.DataFrame:
-        def fetch(self):
+        def fetch_data(self):
+            print(f'Fetching {ticker} data...')
             dat_data = yf.Ticker(ticker).history(period='1d', start='2024-01-01', end=self.tomorrow_date)
             dat_data.drop(columns=['Dividends', 'Stock Splits', "Capital Gains"], inplace=True)
             dat_data.index = pd.to_datetime(dat_data.index)
             dat_data.index = dat_data.index.strftime('%m-%d-%Y')
             return dat_data
-        return await asyncio.to_thread(fetch, self)
+        return await asyncio.to_thread(fetch_data, self)
     async def save_data(self, df: pd.DataFrame):
         '''
         Save the given no-gap pandas dataframe to disk as a .csv
@@ -85,7 +101,7 @@ class GenerateData():
         desktop = os.path.join(home, "Desktop")
         target_folder = os.path.join(desktop, "StockCharts-User-Defined-Indexes")
         os.makedirs(target_folder, exist_ok=True)
-        file_path = os.path.join(target_folder, f'{self.name}_no_gaps-{self.current_date}.csv')
+        file_path = os.path.join(target_folder, f'{self.name}_no_gaps.csv')
         try: 
             csv_data = df.to_csv(index_label="Date")
             async with aiofiles.open(file_path, 'w', newline="") as f:
@@ -104,9 +120,22 @@ async def main():
     rsomething = asyncio.create_task(
         get_data.create_no_gap(2),
     )
+    ### added three below
+    xlk = asyncio.create_task(
+        get_data.create_no_gap(3),
+    )
+    xlk_xli = asyncio.create_task(
+        get_data.create_no_gap(4),
+    )
+    xlk_xlp = asyncio.create_task(
+        get_data.create_no_gap(5),
+    )
     await qqq
     await xlyxlp
     await rsomething
+    await xlk
+    await xlk_xli
+    await xlk_xlp
 if __name__ == "__main__":
     start = time.perf_counter()
     get_data = GenerateData()
